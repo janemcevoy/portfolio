@@ -1,0 +1,109 @@
+Option Explicit
+Private Sub Document_ContentControlOnExit(ByVal oCC As ContentControl, Cancel As Boolean)
+Dim arrData() As String
+Dim strData As String
+Dim lngIndex As Long
+  Select Case oCC.Title
+    Case "CC Conditional Dropdown List"
+      With oCC
+        If Not .ShowingPlaceholderText Then
+          For lngIndex = 1 To .DropdownListEntries.Count
+            If .Range.Text = .DropdownListEntries.Item(lngIndex) Then
+              strData = .DropdownListEntries.Item(lngIndex).Value
+              .Type = wdContentControlText
+              .Range.Text = strData
+              .Type = wdContentControlDropdownList
+              Exit For
+            End If
+          Next lngIndex
+        End If
+      End With
+     Case "Postcode"
+      If Not oCC.ShowingPlaceholderText Then
+        For lngIndex = 1 To oCC.DropdownListEntries.Count
+          If oCC.Range.Text = oCC.DropdownListEntries.Item(lngIndex) Then
+            arrData = Split(oCC.DropdownListEntries.Item(lngIndex).Value, "|")
+            Exit For
+          End If
+        Next lngIndex
+        With oCC
+          .Type = wdContentControlText
+          .Range.Text = arrData(0)
+          .Type = wdContentControlDropdownList
+        End With
+        ActiveDocument.SelectContentControlsByTitle("Name").Item(1).Range.Text = arrData(1)
+        ActiveDocument.SelectContentControlsByTitle("Address").Item(1).Range.Text = Replace(arrData(2), "~", Chr(11))
+        ActiveDocument.SelectContentControlsByTitle("Name2").Item(1).Range.Text = arrData(1)
+      Else
+        ActiveDocument.SelectContentControlsByTitle("Name").Item(1).Range.Text = vbNullString
+        ActiveDocument.SelectContentControlsByTitle("Address").Item(1).Range.Text = vbNullString
+        ActiveDocument.SelectContentControlsByTitle("Name2").Item(1).Range.Text = vbNullString
+        
+      End If
+    Case Else
+  End Select
+lbl_Exit:
+  Exit Sub
+End Sub
+Sub Document_Open()
+Dim strWorkbook As String, strColumnData As String
+Dim lngIndex As Long, lngRowIndex As Long, lngColIndex As Long
+Dim arrData As Variant
+Dim oCC As ContentControl
+Dim bReprotect As Boolean
+  Application.ScreenUpdating = False
+    strWorkbook = "C:\Users\aspec\Documents\Jane" & "\Addresses.xlsx" 
+  If Dir(strWorkbook) = "" Then
+    MsgBox "Cannot find the designated workbook: " & strWorkbook, vbExclamation
+    Exit Sub
+  End If
+    arrData = fcnExcelDataToArray(strWorkbook, "Addresses")
+  Set oCC = ActiveDocument.SelectContentControlsByTitle("Postcode").Item(1)
+  If oCC.DropdownListEntries.Item(1).Value = vbNullString Then
+    For lngIndex = oCC.DropdownListEntries.Count To 2 Step -1
+      oCC.DropdownListEntries.Item(lngIndex).Delete
+    Next lngIndex
+  Else
+    oCC.DropdownListEntries.Clear
+  End If
+  For lngRowIndex = 0 To UBound(arrData, 2)
+    strColumnData = vbNullString
+    For lngColIndex = 1 To UBound(arrData, 1)
+      strColumnData = strColumnData & "|" & arrData(lngColIndex, lngRowIndex)
+    Next lngColIndex
+    strColumnData = Right(strColumnData, Len(strColumnData) - 1)
+    oCC.DropdownListEntries.Add arrData(0, lngRowIndex), strColumnData
+  Next
+lbl_Exit:
+  Application.ScreenUpdating = True
+  Exit Sub
+End Sub
+Private Function fcnExcelDataToArray(strWorkbook As String, _
+                                     Optional strRange As String = "Sheet1", _
+                                     Optional bIsSheet As Boolean = True, _
+                                     Optional bHeaderRow As Boolean = True) As Variant
+Dim oRS As Object, oConn As Object
+Dim lngRows As Long
+Dim strHeaderYES_NO As String
+  strHeaderYES_NO = "YES"
+  If Not bHeaderRow Then strHeaderYES_NO = "NO"
+  If bIsSheet Then strRange = strRange & "$]" Else strRange = strRange & "]"
+  Set oConn = CreateObject("ADODB.Connection")
+  oConn.Open ConnectionString:="Provider=Microsoft.ACE.OLEDB.12.0;" & _
+        "Data Source=" & strWorkbook & ";" & _
+        "Extended Properties=""Excel 12.0 Xml;HDR=" & strHeaderYES_NO & """;"
+  Set oRS = CreateObject("ADODB.Recordset")
+  oRS.Open "SELECT * FROM [" & strRange, oConn, 2, 1
+  With oRS
+    .MoveLast
+    lngRows = .RecordCount
+    .MoveFirst
+  End With
+  fcnExcelDataToArray = oRS.GetRows(lngRows)
+lbl_Exit:
+  If oRS.State = 1 Then oRS.Close
+  Set oRS = Nothing
+  If oConn.State = 1 Then oConn.Close
+  Set oConn = Nothing
+  Exit Function
+End Function
