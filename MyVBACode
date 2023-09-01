@@ -7,7 +7,7 @@ Dim lngIndex As Long
     Case "CC Conditional Dropdown List"
       With oCC
         If Not .ShowingPlaceholderText Then
-          For lngIndex = 1 To .DropdownListEntries.Count
+          For lngIndex = 1 To 10000000
             If .Range.Text = .DropdownListEntries.Item(lngIndex) Then
               strData = .DropdownListEntries.Item(lngIndex).Value
               .Type = wdContentControlText
@@ -45,39 +45,66 @@ Dim lngIndex As Long
 lbl_Exit:
   Exit Sub
 End Sub
+
 Sub Document_Open()
-Dim strWorkbook As String, strColumnData As String
-Dim lngIndex As Long, lngRowIndex As Long, lngColIndex As Long
-Dim arrData As Variant
-Dim oCC As ContentControl
-Dim bReprotect As Boolean
-  Application.ScreenUpdating = False
-    strWorkbook = "C:\Users\aspec\Documents\Jane" & "\Addresses.xlsx" 
-  If Dir(strWorkbook) = "" Then
+    Dim strWorkbook As String, strColumnData As String
+    Dim lngIndex As Long, lngRowIndex As Long, lngColIndex As Long
+    Dim arrData As Variant
+    Dim oCC As ContentControl
+    Dim bReprotect As Boolean
+      Application.ScreenUpdating = False
+    ' Define the first and second file paths
+    Dim firstFilePath As String
+    Dim secondFilePath As String
+    
+    firstFilePath = "M:\Operations\PoAS\Stage 1\Nottingham Searches\Jane\OPG100 Addresses FINAL.xlsx"
+    secondFilePath = "M:\OPG\Operations\PoAS\Stage 1\Nottingham Searches\Jane\OPG100 Addresses FINAL.xlsx"
+    
+    ' Check if the first file path exists
+    If Dir(firstFilePath) <> "" Then
+        strWorkbook = firstFilePath
+    ElseIf Dir(secondFilePath) <> "" Then
+        ' If the first path doesn't exist, use the second path
+        strWorkbook = secondFilePath
+    Else
+        MsgBox "Cannot find the designated workbook in either location.", vbExclamation
+        Exit Sub
+    End If
+    If Dir(strWorkbook) = "" Then
     MsgBox "Cannot find the designated workbook: " & strWorkbook, vbExclamation
     Exit Sub
-  End If
+    End If
     arrData = fcnExcelDataToArray(strWorkbook, "Addresses")
-  Set oCC = ActiveDocument.SelectContentControlsByTitle("Postcode").Item(1)
-  If oCC.DropdownListEntries.Item(1).Value = vbNullString Then
-    For lngIndex = oCC.DropdownListEntries.Count To 2 Step -1
-      oCC.DropdownListEntries.Item(lngIndex).Delete
-    Next lngIndex
-  Else
-    oCC.DropdownListEntries.Clear
-  End If
-  For lngRowIndex = 0 To UBound(arrData, 2)
-    strColumnData = vbNullString
-    For lngColIndex = 1 To UBound(arrData, 1)
-      strColumnData = strColumnData & "|" & arrData(lngColIndex, lngRowIndex)
-    Next lngColIndex
-    strColumnData = Right(strColumnData, Len(strColumnData) - 1)
-    oCC.DropdownListEntries.Add arrData(0, lngRowIndex), strColumnData
-  Next
-lbl_Exit:
-  Application.ScreenUpdating = True
-  Exit Sub
+    Set oCC = ActiveDocument.SelectContentControlsByTitle("Postcode").Item(1)
+    If oCC.DropdownListEntries.Item(1).Value = vbNullString Then
+      For lngIndex = oCC.DropdownListEntries.Count To 2 Step -1
+        oCC.DropdownListEntries.Item(lngIndex).Delete
+      Next lngIndex
+    Else
+      oCC.DropdownListEntries.Clear
+    End If
+    For lngRowIndex = 0 To UBound(arrData, 2)
+        strColumnData = vbNullString
+        For lngColIndex = 1 To UBound(arrData, 1)
+            strColumnData = strColumnData & "|" & arrData(lngColIndex, lngRowIndex)
+        Next lngColIndex
+    
+      ' Check if the data exists for the current row
+      If Len(strColumnData) > 0 Then
+          strColumnData = Right(strColumnData, Len(strColumnData) - 1)
+          
+          ' Check if arrData(0, lngRowIndex) is not Null before adding to dropdown
+          If Not IsNull(arrData(0, lngRowIndex)) Then
+              oCC.DropdownListEntries.Add arrData(0, lngRowIndex), strColumnData
+          End If
+      End If
+      
+      Next lngRowIndex
+      
+      Application.ScreenUpdating = True
+
 End Sub
+
 Private Function fcnExcelDataToArray(strWorkbook As String, _
                                      Optional strRange As String = "Sheet1", _
                                      Optional bIsSheet As Boolean = True, _
